@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "spatial_text"
+version = "0.1.1"
+description = "Common form algorithms"
+authors = ["Jadiel de Armas"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.23"
+networkx = "^2.8.7"
+scipy = "^1.9.2"
+scikit-learn = "^1.2.1"
+
+[tool.poetry.dev-dependencies]
+ipykernel = "*"
+pytest = "^6.2.5"
+coverage = "^6.0.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

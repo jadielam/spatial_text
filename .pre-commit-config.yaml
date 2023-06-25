@@ -1,0 +1,62 @@
+default_stages: [ commit ]
+default_language_version:
+  python: python3.9
+
+repos:
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.259
+    hooks:
+      - id: ruff
+        args: [ --fix, --exit-non-zero-on-fix ]
+
+  - repo: https://github.com/ambv/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+        language_version: python3.9
+        args: [ --config=pyproject.toml ]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: name-tests-test
+      - id: double-quote-string-fixer
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+        args: [--unsafe]
+      - id: detect-private-key
+      - id: detect-aws-credentials
+        args:
+          - "--allow-missing-credentials"
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+
+
+  - repo: https://github.com/asottile/add-trailing-comma
+    rev: v2.4.0
+    hooks:
+      - id: add-trailing-comma
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.1.1
+    hooks:
+      - id: mypy
+        args: [ --config-file, pyproject.toml ]
+        exclude: tests/.*
+        additional_dependencies:
+          - "types-all"
+          - "pydantic>=1.10.4"
+
+  - repo: meta
+    hooks:
+      - id: check-useless-excludes
