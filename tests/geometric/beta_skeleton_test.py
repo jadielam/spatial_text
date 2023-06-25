@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from spatial_text.spatial.beta_skeleton import (
+from spatial_text.geometric.beta_skeleton import (
     _beta_skeleton_delaunay,
     _beta_skeleton_naive,
     beta_skeleton,

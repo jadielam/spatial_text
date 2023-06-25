@@ -3,10 +3,9 @@ from collections import defaultdict
 from typing import Dict, List
 
 import numpy as np
-from spatial_text.data_model import Block, Line, Token
-from spatial_text.spatial.beta_skeleton import beta_skeleton
-from spatial_text.spatial.utils import is_to_the_right
-from sklearn.cluster import DBSCAN
+from spatial_text.data_model import Line, Token
+from spatial_text.geometric.beta_skeleton import beta_skeleton
+from spatial_text.geometric.utils import is_to_the_right
 
 
 def _build_adjacency_lists(edges: np.ndarray) -> Dict[int, List[int]]:
@@ -61,10 +60,14 @@ def tblr_layout(tokens: List[Token]) -> List[Line]:
     Returns a list of lines that go spatially from top to bottom.  The list of tokens
     on each line go spatially from left to right.
     """
-    points = np.array([[(t.bbox[2] - t.bbox[0]) / 2, (t.bbox[3] - t.bbox[1] / 2)] for t in tokens])
+    points = np.array(
+        [[(t.bbox[2] - t.bbox[0]) / 2, (t.bbox[3] - t.bbox[1] / 2)] for t in tokens],
+    )
     adj = _build_adjacency_lists(beta_skeleton(points, 1))
     # Storing in the heap by the y midpoint
-    heap = [((tokens[i].bbox[3] - tokens[i].bbox[1]) / 2, i) for i in range(len(tokens))]
+    heap = [
+        ((tokens[i].bbox[3] - tokens[i].bbox[1]) / 2, i) for i in range(len(tokens))
+    ]
     heapq.heapify(heap)
     unseen_nodes = set(range(len(tokens)))
 
@@ -75,9 +78,9 @@ def tblr_layout(tokens: List[Token]) -> List[Line]:
             try:
                 (_, top_idx) = heapq.heappop(heap)
             except IndexError:
-                top_idx = None
+                to_break = True
             finally:
-                if top_idx in unseen_nodes or top_idx is None:
+                if top_idx in unseen_nodes or to_break:
                     break
         leftmost = _find_leftmost_in_row(top_idx, adj, unseen_nodes, tokens)
         if leftmost in unseen_nodes:
@@ -93,29 +96,3 @@ def tblr_layout(tokens: List[Token]) -> List[Line]:
             to_return.append(Line([tokens[i] for i in line_idxs]))
 
     return to_return
-
-
-def block_layout(tokens: List[Token], distance_thresh: float = 0.1) -> List[Block]:
-    """
-    Returns a cluster of blocks derived from the tokens and their positions in the page.
-    The layout algorithm first applies the beta_skeleton algorithm to derive a
-    graph of neighbors. This graph of neighbors is then the input to the DBSCAN clustering
-    algorithms that derives the blocks.
-    """
-    # TODO: Continue working on this function
-    # Create a custom distance function that takes into consideration:
-    # 1. size of text
-    # 2. distance between tokens based on the size of text
-    # 3. After distance function has been designed, distance threshold can be better
-    # determined. Probably should not even allow a parameter and better to hardcode it.
-    # Or allow a parameter that will be less sensitive in its effect on the algorithm
-    def _compute_distance_matrix(tokens: List[Token], graph_edges) -> np.ndarray:
-        pass
-
-    points = np.array([[(t.bbox[2] - t.bbox[0]) / 2, (t.bbox[3] - t.bbox[1] / 2)] for t in tokens])
-    graph_edges = beta_skeleton(points)
-    _ = _compute_distance_matrix(tokens, graph_edges)
-    DBSCAN(
-        eps=0.01,
-    )
-    return None

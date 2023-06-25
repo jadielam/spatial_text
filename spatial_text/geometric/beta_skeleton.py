@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 
 import numpy as np
-from spatial_text.spatial.utils import compute_angle
-from scipy.spatial import Delaunay, QhullError
+from spatial_text.geometric.utils import compute_angle
+from scipy.spatial import Delaunay, QhullError  # type: ignore
 
 
 def _beta_skeleton_naive(points: np.ndarray, beta: float = 1.0) -> np.ndarray:
