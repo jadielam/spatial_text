@@ -23,6 +23,10 @@ pre-commit = "^3.3.3"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.isort]
+profile = "black"
+
+
 [tool.black]
 # Skipping this as this is handled by flake8 during pre-commit-hook
 skip-string-normalization = 1
@@ -56,15 +60,12 @@ no_strict_optional = true
 plugins = "pydantic.mypy"
 
 [tool.ruff]
-# https://beta.ruff.rs/docs/
-
-target-version = "py39"
+target-version = "py310"
 exclude = ["venv", ".git", ".tox", "poetry.lock"]
 select = ["E", "F", "B", "C", "W", "W292", "E402", "E713", "E714", "E721", "E722", "E731", "RET", "SIM", "I", "ERA", "PIE"]
 
 fix = true
 
-#TODO: fix B023
 ignore = ["E501", "B904", "B905", "B023", "B008"]
 
 
