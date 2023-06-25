@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections import defaultdict
 
 import numpy as np
-from spatial_text.geometric.utils import compute_angle
 from scipy.spatial import Delaunay, QhullError  # type: ignore
+
+from spatial_text.geometric.utils import compute_angle
 
 
 def _beta_skeleton_naive(points: np.ndarray, beta: float = 1.0) -> np.ndarray:
@@ -85,7 +86,7 @@ def _beta_skeleton_delaunay(points: np.ndarray, beta: float = 1.0) -> np.ndarray
     to_return = []
     for (p_i, q_i), r_i_l in edge_points.items():
         p, q = points[p_i], points[q_i]
-        if not any([compute_angle(p, points[r_i], q) >= theta for r_i in r_i_l]):
+        if not any(compute_angle(p, points[r_i], q) >= theta for r_i in r_i_l):
             to_return.append([p_i, q_i])
     return np.array(to_return, dtype=np.int32)
 
@@ -127,5 +128,5 @@ def beta_skeleton(points: np.ndarray, beta: float = 1.0) -> np.ndarray:
             # We arrive here when the initial simplex is flat
             edges = _beta_skeleton_naive(points, beta)
         return edges
-    else:
-        return _beta_skeleton_naive(points, beta)
+
+    return _beta_skeleton_naive(points, beta)

@@ -1,5 +1,5 @@
-from typing import Dict, List, Optional
 from collections import deque
+from typing import Dict, List, Optional
 
 
 class TrieNode:
@@ -71,7 +71,7 @@ def search_word(trie_node: TrieNode, word: str) -> bool:
     - True if word was found in trie, False otherwise
     """
     final_node = find_node(trie_node, word)
-    return True if final_node is not None and final_node.word is not None else False
+    return bool(final_node is not None and final_node.word is not None)
 
 
 def prefix_search(trie_node: TrieNode, prefix: str) -> List[str]:

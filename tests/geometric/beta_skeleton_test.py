@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
+
 from spatial_text.geometric.beta_skeleton import (
     _beta_skeleton_delaunay,
     _beta_skeleton_naive,
@@ -23,8 +24,8 @@ def compare_edge_lists(el_1: Sequence, el_2: Sequence) -> bool:
     --------
     - `True` if the two lists of edges are the same, `False` otherwise
     """
-    set_1 = set([tuple(sorted(a)) for a in el_1])
-    set_2 = set([tuple(sorted(a)) for a in el_2])
+    set_1 = {tuple(sorted(a)) for a in el_1}
+    set_2 = {tuple(sorted(a)) for a in el_2}
     return set_1 == set_2
 
 

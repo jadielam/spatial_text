@@ -1,4 +1,5 @@
 import numpy as np
+
 from spatial_text.data_model import Token
 
 
@@ -22,8 +23,7 @@ def compute_angle(p: np.ndarray, r: np.ndarray, q: np.ndarray) -> float:
     rp = p - r
     rq = q - r
     cosine = np.dot(rp, rq) / (np.linalg.norm(rp) * np.linalg.norm(rq))
-    angle = np.arccos(cosine)
-    return angle
+    return np.arccos(cosine)
 
 
 def is_to_the_right(t1: Token, t2: Token, threshold: float = np.pi / 16) -> bool:

@@ -54,7 +54,9 @@ class Line:
     A line is a list of tokens that are read from left to right.
     """
 
-    def __init__(self, tokens: List[Token] = []):
+    def __init__(self, tokens: List[Token] = None):
+        if tokens is None:
+            tokens = []
         assert tokens is not None
         self.__tokens = tokens
 
@@ -82,7 +84,9 @@ class Block:
     A block is a list of lines that overflow from top to bottom.
     """
 
-    def __init__(self, lines: List[Line] = []):
+    def __init__(self, lines: List[Line] = None):
+        if lines is None:
+            lines = []
         self.__lines = lines
 
     @cached_property
