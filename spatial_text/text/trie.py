@@ -81,13 +81,13 @@ def fuzzy_search(trie: TrieNode, word: str, max_distance: int) -> List[str]:
                 )
 
     # build first row
-    currentRow = range(len(word) + 1)
+    current_row = range(len(word) + 1)
 
     results: List[str] = []
 
     # recursively search each branch of the trie
     for letter in trie.children:
-        _search_recursive(trie.children[letter], letter, word, currentRow, results, max_distance)
+        _search_recursive(trie.children[letter], letter, word, current_row, results, max_distance)
 
     return results
 
