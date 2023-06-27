@@ -38,7 +38,7 @@ def fuzzy_search(trie: TrieNode, word: str, max_distance: int) -> List[str]:
         node: TrieNode,
         letter: str,
         word: str,
-        previousRow,
+        previous_row,
         results,
         max_distance,
     ):
@@ -47,35 +47,35 @@ def fuzzy_search(trie: TrieNode, word: str, max_distance: int) -> List[str]:
         the previousRow has been filled in already.
         """
         columns = len(word) + 1
-        currentRow = [previousRow[0] + 1]
+        current_row = [previous_row[0] + 1]
 
         # Build one row for the letter, with a column for each letter in the target
         # word, plus one for the empty string at column 0
         for column in range(1, columns):
-            insertCost = currentRow[column - 1] + 1
-            deleteCost = previousRow[column] + 1
+            insert_cost = current_row[column - 1] + 1
+            delete_cost = previous_row[column] + 1
 
             if word[column - 1] != letter:
-                replaceCost = previousRow[column - 1] + 1
+                replace_cost = previous_row[column - 1] + 1
             else:
-                replaceCost = previousRow[column - 1]
+                replace_cost = previous_row[column - 1]
 
-            currentRow.append(min(insertCost, deleteCost, replaceCost))
+            current_row.append(min(insert_cost, delete_cost, replace_cost))
 
         # if the last entry in the row indicates the optimal cost is less than the
         # maximum cost, and there is a word in this trie node, then add it.
-        if currentRow[-1] <= max_distance and node.word is not None:
-            results.append((node.word, currentRow[-1]))
+        if current_row[-1] <= max_distance and node.word is not None:
+            results.append((node.word, current_row[-1]))
 
         # if any entries in the row are less than the maximum cost, then
         # recursively search each branch of the trie
-        if min(currentRow) <= max_distance:
+        if min(current_row) <= max_distance:
             for letter in node.children:
                 _search_recursive(
                     node.children[letter],
                     letter,
                     word,
-                    currentRow,
+                    current_row,
                     results,
                     max_distance,
                 )
