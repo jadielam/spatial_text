@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def edit_distance(self, word1: str, word2: str, wi=1, wd=1, wr=1) -> int:
+def edit_distance(word1: str, word2: str, wi=1, wd=1, wr=1) -> int:
     """
     Computes the edit distance between two strings. The edit distance is the
     minimum number of operations (insertion, deletion, substitution) required
