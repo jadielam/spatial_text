@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment  # type: ignore
@@ -115,6 +115,7 @@ def distance_labels_candidates(
     distances = np.full(
         (len(candidate_labels), len(candidate_sequences)),
         PRACTICAL_INFINITY,
+        dtype=np.float32,
     )
     for i, candidate_label in enumerate(candidate_labels):
         for j in range(i, len(candidate_sequences)):
@@ -150,10 +151,13 @@ def distance_labels_candidates(
 def find_best_sequences(
     root: TrieNode,
     query: Tuple[str],
-    scoring_fn,
+    scoring_fn: Callable[[List[Block], Tuple[str]], List[float]],
     top_k=1,
 ) -> List[Block]:
     candidates = find_candidate_sequences(root, query)
+    if top_k == -1:
+        return candidates
+
     distances = scoring_fn(candidates, query)
     distances_argsort = np.argsort(distances)
     to_return = []
@@ -218,7 +222,7 @@ def derive_bboxes_of_extractions(
                 root,
                 value,
                 compute_distance_to_query,
-                top_k=len(keys),
+                top_k=-1,
             )
 
             candidate_labels: List[Block] = []
@@ -246,9 +250,9 @@ def derive_bboxes_of_extractions(
             label_ind, value_ind = linear_sum_assignment(distance_matrix)
             assert len(label_ind) == len(value_ind)
             for k in range(len(value_ind)):
-                to_return[
-                    labelCandidate_idx_to_key[label_ind[k]]
-                ] = candidate_sequences[value_ind[k]]
+                to_return[labelCandidate_idx_to_key[label_ind[k]]] = candidate_sequences[
+                    value_ind[k]
+                ]
         elif len(keys) > 1 and keys_labels is None:
             for key in keys:
                 to_return[key] = None
