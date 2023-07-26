@@ -22,6 +22,9 @@ exclude = '''
 )/
 '''
 
+[tool.ruff]
+line-length = 100
+
 [tool.poetry]
 name = "spatial_text"
 version = "0.1.0"

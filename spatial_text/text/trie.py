@@ -22,7 +22,7 @@ class TrieNode(Generic[T]):
 
 def fuzzy_search(
     trie: TrieNode[T],
-    token: T,
+    token: Token,
     max_distance: int,
 ) -> List[Tuple[T, int]]:
     """
@@ -46,7 +46,7 @@ def fuzzy_search(
     def _search_recursive(
         node: TrieNode[T],
         letter: str,
-        token: T,
+        token: Token,
         previous_row,
         results: List[Tuple[T, int]],
         max_distance: int,

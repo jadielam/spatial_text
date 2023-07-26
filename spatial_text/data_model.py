@@ -44,9 +44,7 @@ class SpatialToken(Token):
         assert bbox is not None
         super().__init__(word)
         self.__bbox = bbox
-        self.__area = (self.__bbox[2] - self.__bbox[0]) * (
-            self.__bbox[3] - self.__bbox[1]
-        )
+        self.__area = (self.__bbox[2] - self.__bbox[0]) * (self.__bbox[3] - self.__bbox[1])
 
     @property
     def bbox(self):

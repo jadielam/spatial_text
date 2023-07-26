@@ -9,12 +9,15 @@ class RunningStats:
 
     __slot__ = ['n', 'old_m', 'new_m', 'old_s', 'new_s']
 
-    def __init__(self):
-        self.n = 0
-        self.old_m = 0
-        self.new_m = 0
-        self.old_s = 0
-        self.new_s = 0
+    def __init__(self, n=0, old_m=0, new_m=0, old_s=0, new_s=0):
+        self.n = n
+        self.old_m = old_m
+        self.new_m = new_m
+        self.old_s = old_s
+        self.new_s = new_s
+
+    def copy(self):
+        return RunningStats(self.n, self.old_m, self.new_m, self.old_s, self.new_s)
 
     def clear(self):
         self.n = 0
