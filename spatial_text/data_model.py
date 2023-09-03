@@ -2,25 +2,36 @@ from typing import List, Optional
 
 import numpy as np
 
+from spatial_text import config
 from spatial_text.utils.running_stats import RunningStats
 
 
-class Token:
-    __slots__ = ['word']
+class TextContainer:
+    __slots__ = ['text']
 
-    def __init__(self, word: str):
-        self.word = word
+    def __init__(self, text: str):
+        self.text = text
+
+    def __str__(self) -> str:
+        return self.text
+
+
+class Token(TextContainer):
+    __slots__ = ['text']
+
+    def __init__(self, text: str):
+        super().__init__(text)
 
     def __eq__(self, other):
         if type(other) != Token:
             return False
-        return self.word == other.word
+        return self.text == other.text
 
     def __hash__(self):
-        return hash(self.word)
+        return hash(self.text)
 
     def __str__(self) -> str:
-        return self.word
+        return self.text
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -39,10 +50,10 @@ class SpatialToken(Token):
 
     __slots__ = ['__bbox', '__area']
 
-    def __init__(self, word: str, bbox: np.ndarray):
-        assert word is not None
+    def __init__(self, text: str, bbox: np.ndarray):
+        assert text is not None
         assert bbox is not None
-        super().__init__(word)
+        super().__init__(text)
         self.__bbox = bbox
         self.__area = (self.__bbox[2] - self.__bbox[0]) * (self.__bbox[3] - self.__bbox[1])
 
@@ -54,6 +65,10 @@ class SpatialToken(Token):
         if self.__bbox is None:
             return None
         return self.__bbox
+
+    @property
+    def avg_char_length(self):
+        return (self.bbox[2] - self.bbox[0]) / len(self.text)
 
     def area(self):
         """
@@ -68,10 +83,10 @@ class SpatialToken(Token):
         """
         if type(other) != SpatialToken:
             return False
-        return self.word == other.word and np.array_equal(self.__bbox, other.bbox)
+        return self.text == other.text and np.array_equal(self.__bbox, other.bbox)
 
     def __hash__(self):
-        return hash((self.word, self.__bbox))
+        return hash((self.text, self.__bbox))
 
 
 class Line:
@@ -90,7 +105,7 @@ class Line:
         for t in self.__tokens:
             t_bbox = t.bbox
             if t_bbox is not None:
-                self.__char_length_stats.push((t_bbox[2] - t_bbox[0]) / len(t.word))
+                self.__char_length_stats.push((t_bbox[2] - t_bbox[0]) / len(t.text))
 
     def tokens(self) -> List[SpatialToken]:
         """
@@ -105,9 +120,7 @@ class Line:
         """
         if len(self.__tokens) == 0:
             self.__tokens.append(token)
-            self.__char_length_stats.push(
-                (token.bbox[2] - token.bbox[0]) / len(token.word),
-            )
+            self.__char_length_stats.push((token.bbox[2] - token.bbox[0]) / len(token.text))
             return True
 
         # add token to line if:
@@ -116,14 +129,13 @@ class Line:
         # (3) token is aligned in the y-axis with the last token in the line.
         if (
             token.bbox[0] > self.__tokens[-1].bbox[2]
-            and token.bbox[0] < self.__tokens[-1].bbox[2] + self.avg_char_len() * 3
+            and token.bbox[0]
+            < self.__tokens[-1].bbox[2] + self.avg_char_len() * config.DATA_MODEL_LINE_RIGHT_CHAR
             and abs(token.bbox[1] - self.__tokens[-1].bbox[1])
-            < 0.5 * (token.bbox[3] - token.bbox[1])
+            < config.DATA_MODEL_LINE_NEXT_LINE * (token.bbox[3] - token.bbox[1])
         ):
             self.__tokens.append(token)
-            self.__char_length_stats.push(
-                (token.bbox[2] - token.bbox[0]) / len(token.word),
-            )
+            self.__char_length_stats.push((token.bbox[2] - token.bbox[0]) / len(token.text))
             return True
         return False
 
@@ -177,6 +189,22 @@ class Line:
 
     def copy(self) -> 'Line':
         return Line(list(self.__tokens))
+
+
+class BlockDataClass(TextContainer):
+    __slots__ = ['text', 'bbox', 'avg_char_length']
+
+    def __init__(self, text: str, bbox: np.ndarray, avg_char_length: int):
+        """
+        Arguments:
+        ----------
+        - text: str
+        - bbox: np.ndarray with format (xmin, ymin, xmax, ymax)
+        - avg_char_length: int
+        """
+        super().__init__(text)
+        self.bbox = bbox
+        self.avg_char_length = avg_char_length
 
 
 class Block:
@@ -254,7 +282,8 @@ class Block:
         if (
             new_line_bbox[1] > last_line_bbox[3]
             and new_line_bbox[1] - last_line_bbox[3] < last_line_height
-            and abs(new_line_bbox[0] - last_line_bbox[0]) < 5 * last_line_avg_char_len
+            and abs(new_line_bbox[0] - last_line_bbox[0])
+            < config.DATA_MODEL_BLOCK_LINE_ALIGNMENT * last_line_avg_char_len
         ):
             self.__lines.append(line)
             return True
@@ -271,7 +300,10 @@ class Block:
 
     def __str__(self) -> str:
         tokens = self.tokens()
-        return ' '.join([t.word for t in tokens])
+        return ' '.join([t.text for t in tokens])
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def compactness(self) -> float:
         """

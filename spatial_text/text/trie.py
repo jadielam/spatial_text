@@ -1,9 +1,9 @@
 from collections import deque
 from typing import Dict, Generic, List, Optional, Tuple, TypeVar
 
-from spatial_text.data_model import Token
+from spatial_text.data_model import TextContainer
 
-T = TypeVar('T', bound=Token)
+T = TypeVar('T', bound=TextContainer)
 
 
 class TrieNode(Generic[T]):
@@ -13,7 +13,7 @@ class TrieNode(Generic[T]):
 
     def insert(self, token: T):
         node = self
-        for letter in token.word:
+        for letter in token.text:
             if letter not in node.children:
                 node.children[letter] = TrieNode()
             node = node.children[letter]
@@ -22,7 +22,7 @@ class TrieNode(Generic[T]):
 
 def fuzzy_search(
     trie: TrieNode[T],
-    token: Token,
+    token: TextContainer,
     max_distance: int,
 ) -> List[Tuple[T, int]]:
     """
@@ -46,7 +46,7 @@ def fuzzy_search(
     def _search_recursive(
         node: TrieNode[T],
         letter: str,
-        token: Token,
+        token: TextContainer,
         previous_row,
         results: List[Tuple[T, int]],
         max_distance: int,
@@ -55,7 +55,7 @@ def fuzzy_search(
         This recursive helper is used by the outer search function. It assumes that
         the previousRow has been filled in already.
         """
-        columns = len(token.word) + 1
+        columns = len(token.text) + 1
         current_row = [previous_row[0] + 1]
 
         # Build one row for the letter, with a column for each letter in the target
@@ -64,7 +64,7 @@ def fuzzy_search(
             insert_cost = current_row[column - 1] + 1
             delete_cost = previous_row[column] + 1
 
-            if token.word[column - 1] != letter:
+            if token.text[column - 1] != letter:
                 replace_cost = previous_row[column - 1] + 1
             else:
                 replace_cost = previous_row[column - 1]
@@ -91,7 +91,7 @@ def fuzzy_search(
                 )
 
     # build first row
-    current_row = range(len(token.word) + 1)
+    current_row = range(len(token.text) + 1)
 
     results: List[Tuple[T, int]] = []
 
@@ -109,7 +109,7 @@ def fuzzy_search(
     return results
 
 
-def find_node(trie_node: TrieNode[T], prefix: Token) -> Optional[TrieNode[T]]:
+def find_node(trie_node: TrieNode[T], prefix: TextContainer) -> Optional[TrieNode[T]]:
     """
     Searches for prefix on trie rooted at trie_node and returns the
     last TrieNode of the search. If it cannot find the entire prefix,
@@ -125,14 +125,14 @@ def find_node(trie_node: TrieNode[T], prefix: Token) -> Optional[TrieNode[T]]:
     - Last TrieNode of the search if word is found, None otherwise
     """
     current_node = trie_node
-    for ch in prefix.word:
+    for ch in prefix.text:
         if ch not in current_node.children:
             return None
         current_node = current_node.children[ch]
     return current_node
 
 
-def search_word(trie_node: TrieNode[T], token: Token) -> bool:
+def search_word(trie_node: TrieNode[T], token: TextContainer) -> bool:
     """
     Returns true if word was found in trie, otherwise returns false
 
@@ -149,7 +149,7 @@ def search_word(trie_node: TrieNode[T], token: Token) -> bool:
     return bool(final_node is not None and len(final_node.tokens) > 0)
 
 
-def prefix_search(trie_node: TrieNode[T], prefix: Token) -> List[T]:
+def prefix_search(trie_node: TrieNode[T], prefix: TextContainer) -> List[T]:
     """
     Returns all words in trie that have the given prefix
 
