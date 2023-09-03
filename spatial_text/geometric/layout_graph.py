@@ -1,14 +1,13 @@
 import itertools
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 
-from spatial_text.data_model import SpatialToken, Token
+from spatial_text import config
+from spatial_text.data_model import BlockDataClass, SpatialToken, Token
 from spatial_text.text.trie import TrieNode, fuzzy_search
-from spatial_text.utils.numeric_strings import (
-    generate_numeric_candidates,
-    is_numeric,
-)
+from spatial_text.utils.numeric_strings import (generate_numeric_candidates,
+                                                is_numeric)
 from spatial_text.utils.running_stats import RunningStats
 
 
@@ -96,8 +95,8 @@ class LayoutNode:
         # (3) token is aligned in the y-axis with the last token in the line.
         if (
             bbox[0] > self.bbox[2]
-            and bbox[0] < self.bbox[2] + self.avg_char_length * 3
-            and abs(bbox[1] - self.bbox[1]) < 0.5 * (bbox[3] - bbox[1])
+            and bbox[0] < self.bbox[2] + self.avg_char_length * config.DATA_MODEL_LINE_RIGHT_CHAR
+            and abs(bbox[1] - self.bbox[1]) < config.DATA_MODEL_LINE_NEXT_LINE * (bbox[3] - bbox[1])
         ):
             layout_node = LayoutNode(
                 token_str,
@@ -117,7 +116,8 @@ class LayoutNode:
         if (
             bbox[1] > self.line_start_node.bbox[3]
             and bbox[1] - self.line_start_node.bbox[3] < last_line_height
-            and abs(bbox[0] - self.line_start_node.bbox[0]) < 5 * self.avg_char_length
+            and abs(bbox[0] - self.line_start_node.bbox[0])
+            < config.DATA_MODEL_BLOCK_LINE_ALIGNMENT * self.avg_char_length
         ):
             layout_node = LayoutNode(token_str, bbox, self.char_length_stats.copy(), None)
             self.children.append(layout_node)
@@ -157,24 +157,18 @@ def build_layout_graph_for_query(
         query_prunning_distance += len(token_str) + 1
 
         candidates: List[Tuple[SpatialToken, int]] = []
-        if is_numeric(token_str):
-            for numeric_candidate in generate_numeric_candidates(token_str):
-                candidates.extend(
-                    fuzzy_search(
-                        trie,
-                        Token(numeric_candidate),
-                        int(len(token_str) * 0.3),
-                    ),  # type: ignore
-                )
-        else:
-            token = Token(token_str)
-            candidates = fuzzy_search(trie, token, int(len(token_str) * 0.3))
+        token = Token(token_str)
+        candidates = fuzzy_search(
+            trie,
+            token,
+            int(len(token_str) * config.SEQ_FUZZY_SEARCH_FRAC_DISTANCE),
+        )
 
         layout_nodes_length = len(layout_nodes)
         for candidate in candidates:
             added_nodes_count = 0
             for layout_node in layout_nodes[:layout_nodes_length]:
-                added_node = layout_node.add_token(candidate[0].word, candidate[0].bbox)
+                added_node = layout_node.add_token(candidate[0].text, candidate[0].bbox)
                 if added_node is not None:
                     layout_nodes.append(added_node)
                     added_nodes_count += 1
@@ -184,23 +178,25 @@ def build_layout_graph_for_query(
             if added_nodes_count == 0 and (
                 query_prunning_distance < pruning_distance or pruning_distance == -1
             ):
-                layout_node = layout_root_node.add_token(candidate[0].word, candidate[0].bbox)
+                layout_node = layout_root_node.add_token(candidate[0].text, candidate[0].bbox)
                 layout_nodes.append(layout_node)
 
     return layout_root_node
 
 
-def seqs_from_layout_graph(layout_root_node: RootNode) -> List[Tuple[List[str], np.ndarray]]:
+def seqs_from_layout_graph(layout_root_node: RootNode) -> List[BlockDataClass]:
     """
     Does search in the graph collecting all the sequences that are possible, together
     with their bounding boxes. All possible sequences are determined by all the paths from the
     root to a terminal.
     """
-    stack: List[Tuple[List[str], Union[RootNode, LayoutNode], np.ndarray]] = [
-        ([], layout_root_node, np.array([float('inf'), float('inf'), 0, 0])),
+    if not layout_root_node.children:
+        return []
+
+    stack: List[Tuple[List[str], LayoutNode, np.ndarray]] = [
+        ([], layout_root_node, np.array([float('inf'), float('inf'), 0, 0])),  # type: ignore
     ]
     to_return = []
-
     while stack:
         seq, node, bbox = stack.pop()
         if node.children:
@@ -215,37 +211,53 @@ def seqs_from_layout_graph(layout_root_node: RootNode) -> List[Tuple[List[str], 
                 )
                 stack.append((seq + [child.token], child, new_bbox))
         else:
-            to_return.append((seq, bbox))
+            to_return.append(BlockDataClass(' '.join(seq), bbox, node.avg_char_length))
 
     return to_return
 
 
 def find_best_sequences(
-    trie: TrieNode[SpatialToken],
+    trie: TrieNode,
     query: Tuple[str],
     k=1,
-) -> List[Tuple[str, np.ndarray]]:
+) -> List[BlockDataClass]:
     """
     Finds the top k best sequences that match the query. The sequences are returned in order of
     relevance. The relevance is determined the edit distance between sequence and query.
-
     Args:
         trie: The trie that contains the ocr text.
         query: The query to search for in the ocr text.
         k: The number of sequences to return. if k is -1, return all the sequences found.
     """
+    query_str = ' '.join(query)
+    if is_numeric(query_str):
+        numeric_candidates = generate_numeric_candidates(query_str)
+        candidates: List[Tuple[SpatialToken, int]] = []
+        for numeric_candidate in numeric_candidates:
+            candidates.extend(
+                fuzzy_search(
+                    trie,
+                    Token(numeric_candidate),
+                    1,
+                ),  # type: ignore
+            )
+        candidates.sort(key=lambda x: x[1])
+        out = [BlockDataClass(a[0].text, a[0].bbox, a[0].avg_char_length) for a in candidates]
+        return out if k == -1 else out[:k]
+
+    # Building layout graph for non-numeric fields
     layout_root_node = build_layout_graph_for_query(trie, query)
 
-    candidates_trie: TrieNode[SpatialToken] = TrieNode()
+    candidates_trie: TrieNode[BlockDataClass] = TrieNode()
     candidate_seqs = seqs_from_layout_graph(layout_root_node)
-    for candidate_seq, bbox in candidate_seqs:
-        candidate_seq_str = ' '.join(candidate_seq)
-        # Note: we are using spatial token here, but in reality, this is not a token,
-        # but a complete string.
-        seq_token = SpatialToken(candidate_seq_str, bbox)
-        candidates_trie.insert(seq_token)
 
-    query_str = ' '.join(query)
-    seqs_and_distances = fuzzy_search(candidates_trie, Token(query_str), int(len(query_str) * 0.3))
+    for candidate_seq in candidate_seqs:
+        candidates_trie.insert(candidate_seq)
+    seqs_and_distances = fuzzy_search(
+        candidates_trie,
+        Token(query_str),
+        int(len(query_str) * 0.3),
+    )
     seqs_and_distances.sort(key=lambda x: x[1])
-    return [(a[0].word, a[0].bbox) for a in seqs_and_distances][:k]
+    out = [a[0] for a in seqs_and_distances]
+    return out if k == -1 else out[:k]
