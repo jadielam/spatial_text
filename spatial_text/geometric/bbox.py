@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Dict
 
 import numpy as np
@@ -43,6 +44,113 @@ def compute_iou(bbox1: np.ndarray, bbox2: np.ndarray) -> float:
     return intersection / union
 
 
+@lru_cache(maxsize=4)
+def rotation_matrix(angle_in_degres: float) -> np.ndarray:
+    """
+    Returns a rotation matrix for a given angle in degrees.
+
+    Uses lru_cache because the four angles of the coordinate
+    system (0, 90, 180, 270) are used repeatedly.
+    """
+    angle_in_radians = angle_in_degres * np.pi / 180
+    return np.array(
+        [
+            [np.cos(angle_in_radians), -np.sin(angle_in_radians)],
+            [np.sin(angle_in_radians), np.cos(angle_in_radians)],
+        ],
+    )
+
+
+def rotate_points(points: np.ndarray, angle_in_degrees: float) -> np.ndarray:
+    """
+    Rotates a set of points by a given angle and returns the rotated
+    points.
+
+    Arguments:
+        points: Array of shape (nb_points, 2). Points given in the format (x, y).
+        angle_in_degrees: Angle in degrees to rotate the points.
+
+    Returns:
+        Rotated points.
+    """
+    rm = rotation_matrix(angle_in_degrees)
+    return np.dot(points, rm)
+
+
+def derive_points_of_bboxes(bboxes: np.ndarray) -> np.ndarray:
+    """
+    Derives the four points of a set of bounding boxes from the bounding boxes in the format
+    (xmin, ymin, xmax, ymax).
+
+    Arguments:
+        bboxes: Array of shape (nb_boxes, 4). Bounding boxes given in the format (xmin, ymin, xmax, ymax).
+
+    Returns:
+        Four points of the bounding boxes in the format (x, y). The shape of the returned
+        array is (nb_bboxes, 4, 2).
+    """
+    points = np.zeros((bboxes.shape[0], 4, 2))
+    points[:, 0, 0] = bboxes[:, 0]
+    points[:, 0, 1] = bboxes[:, 1]
+    points[:, 1, 0] = bboxes[:, 0]
+    points[:, 1, 1] = bboxes[:, 3]
+    points[:, 2, 0] = bboxes[:, 2]
+    points[:, 2, 1] = bboxes[:, 1]
+    points[:, 3, 0] = bboxes[:, 2]
+    points[:, 3, 1] = bboxes[:, 3]
+    return points
+
+
+def derive_bboxes_from_points(rotated_bbox_points: np.ndarray) -> np.ndarray:
+    """
+    Derives the bounding boxes in (xmin, ymin, xmax, ymax) format from
+    from the four points of the bboxes
+
+    Arguments:
+        rotated_bbox_points: Array of shape (nb_bboxes, 4, 2) with the four points
+            corresponding to the corners of a bbox. Points are given in format (x, y)
+
+    Returns:
+        Bounding boxes: np.ndarray of shape (nb_bboxes, 4). Bboxes are given in the format
+            (xmin, ymin, xmax, ymax)
+    """
+    bboxes = np.zeros((rotated_bbox_points.shape[0], 4))
+    bboxes[:, 0] = np.min(rotated_bbox_points[:, :, 0], axis=1)
+    bboxes[:, 1] = np.min(rotated_bbox_points[:, :, 1], axis=1)
+    bboxes[:, 2] = np.max(rotated_bbox_points[:, :, 0], axis=1)
+    bboxes[:, 3] = np.max(rotated_bbox_points[:, :, 1], axis=1)
+    return bboxes
+
+
+def rotate_bboxes(bboxes: np.ndarray, angle_in_degrees: float) -> np.ndarray:
+    """
+    Rotates a set of bounding boxes by a given angle.
+    The process to rotate the bounding boxes is as follows:
+    1. Convert the bounding boxes in two points format (xmin, ymin) and (xmax, ymax)
+        to four points format.
+    2. Rotate the four points.
+    3. Derive the two point format bboxes from the four points.
+    4. Return the bounding boxes in the two points format and in the four points format.
+
+    The bounding boxes need to be rotated in both formats because returning them
+    only in the two points format makes it impossible to revert the rotation operation.
+
+
+    Arguments:
+        bboxes: Bounding boxes given in the format (xmin, ymin, xmax, ymax).
+        angle_in_degres: Angle in degrees to rotate the bounding boxes. Most divisible
+            by 90
+
+    Returns:
+        bboxes in the two points format (xmin, ymin, xmax, ymax)
+    """
+    if angle_in_degrees % 90 != 0:
+        raise ValueError('Angle needs to be divisible by 90')
+    bbox_points = derive_points_of_bboxes(bboxes)
+    rotated_bbox_points = rotate_points(bbox_points, angle_in_degrees)
+    return derive_bboxes_from_points(rotated_bbox_points)
+
+
 def map_evaluation(
     pred: Dict[str, np.ndarray],
     target: Dict[str, np.ndarray],
@@ -71,5 +179,5 @@ def map_evaluation(
             if iou >= p:
                 correct_predictions += 1
     if denominator == 'pred':
-        return correct_predictions / len(pred)
-    return correct_predictions / len(target)
+        return correct_predictions / len(pred) if len(pred) > 0 else 0
+    return correct_predictions / len(target) if len(target) > 0 else 0
